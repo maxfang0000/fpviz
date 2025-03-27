@@ -1,0 +1,33 @@
+Create a ieee754 single precision floating point converter. Split the page in upper half and lower half. The upper half has a left panel with a text box for hexadecimal encoding of fp32 (8 hex digits), and a right panel with a text box for human readable number in decimal form. The lower half of the page shows an illustration of 32 bit fields for the binary encoding. Group the bit fields in bytes, i.e. 8 bits a group. If a user fills 8 hex digits in the upper-left textbox, both the upper-right textbox and the lower illustration should be updated automatically. Same with the upper-right textbox.
+in the illustration, color code the 8 bits of exponent in blue (darker blue for 1, and lighter blue for 0), color code the 23 bits of mantissa in green (darker green for 1, and lighter green for 0), color code the 1 bit of sign in red (darker red for 1, and lighter red for 0).
+in the illustration, the first bit in the second group of bits belongs to mantissa. the color coding should follow the mantissa rule.
+it's still not correct. the first bit of the second group is wrong, so you need to add a condition for i === 1.
+it's still not correct. for the condition i === 1 && j === 0, the exponent classes should be applied, instead of the mantissa classes.
+please handle infinity and nan following ieee754.
+please make the illustration interactive, i.e., when the user clicks the bit field, it toggles the bit (from 0 to 1, or from 1 to 0). The upper textboxes should be updated accordingly to reflect the change.
+please handle subnormal values correctly. when exponent bits are all zero, ieee754 subnormal rule kicks in.
+please replace the "Byte 1", "Byte 2", ... text in the illustration, and replace it with the 2-hex-digit representation of the byte, like printed by "%02X" in C-style printf.
+please add a "0x" prefix to the hex representation in the illustration.
+In the illustration section, below the current illustration, please add 2 extra lines to showing the exponent (8-bits) in hex with a "0x" prefix in 2 hex digits, and the mantissa (23-bits) in hex with a "0x" prefix in 6 hex digits.
+Put exponent and mantissa in separate lines. In the exponent line, add a field "Unbiased Exponent" on the right, to show the exponent adjusted by exponent bias (127 for fp32), in signed integer (decimal). In the mantissa line, add a field "With Leading One" on the right, to show the mantissa with the hidden leading one, in unsigned integer (decimal).
+After the "With Leading One" field, add another field "Normalized", to show the "With Leading One" value divided by 2^num_mantissa_bits, in human readable floating point (decimal).
+Reduce the vertical spacing between the illustration and exponent/mantissa fields to match the vertical spacing between the textbox region and the illustration region.
+If the value is in subnormal range, hide the "With Leading One" and "Normalized" fields, as they no longer apply. Show a "In Decimal" field instead to show the mantissa encoding in unsigned integer.
+When the page is loaded, it should show value 0.
+On top of the page add a row of tabs. Name the current tab "FP32". Add a second tab "FP16" for all the implemented features, but applied to ieee754 half precision (16-bit).
+For the FP16 part, the color coding needs to be updated. There are 5 exponent bits and 10 mantissa bits.
+The FP16 color coding is still incorrect. The exponent rules should apply to (i === 0 && j > 0 && j < 6), while the mantissa rules should apply to ((i === 0 && j >= 6) || (i === 1)).
+For values out of the range that FP32 or FP16 could represent, please clamp the value to the closest non-infinity value that the format could represent. For example, if the user enters 68765 in the FP16 panel, we should first clamp the value to 65504 and just illustrate 65504.
+The change break the page. When the user changes value in the textboxes, the page no longer updates.
+It's still broken. The decimal number panel still doesn't trigger page update.
+The FP32 part is fixed, but FP16 part is not.
+when the user entered decimal value goes beyond the format's maximum range, the decimal number field is not updated to reflect the range clamp.
+Two issues: 1) the decimal number field no longer support the decimal point. 2) when the decimal number field is empty, please treat it as zero, without actually changing the content.
+The decimal point still cannot be entered because the page update would rewrite the textbox and the decimal point is lost in the rewrite.
+If the user types in scientific notation, e.g. 3.6e+2, the value is not recognized correctly.
+Please do not convert the scientific notation immediately because the 10's exponent part could have multiple digits.
+You won't be able to detect the end of scientific notation. It's better to still update the page eagerly, just don't overwrite the user's scientific notation input in the textbox, unless it's detected out-of-range.
+Please make the page 960 pixels wide.
+Please make the bit illustration a little bit smaller, maybe 18 pixels for each bit, and reduce the bit group padding to 5 pixels.
+Please use "FPViz" for the html <title> tag.
+Please use 2 spaces for indentation.
