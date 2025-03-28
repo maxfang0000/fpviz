@@ -7,14 +7,14 @@
   <style>
     body {
       font-family: Arial, sans-serif;
-      max-width: 720px;
+      max-width: 480px;
       margin: 0 auto;
-      padding: 20px;
+      padding: 10px;
     }
     .tabs {
       display: flex;
       gap: 10px;
-      margin-bottom: 20px;
+      margin-bottom: 10px;
     }
     .tab {
       padding: 10px 20px;
@@ -36,7 +36,7 @@
     .container {
       display: flex;
       flex-direction: column;
-      gap: 20px;
+      gap: 10px;
     }
     .upper-half {
       display: flex;
@@ -73,21 +73,22 @@
     }
     .bit-group {
       display: inline-block;
-      margin: 2px;
+      margin: 0px;
       padding: 2px;
       border: 1px solid #999;
-      border-radius: 2px;
+      border-radius: 1px;
       background-color: white;
     }
     .bit {
       display: inline-block;
-      width: 17px;
-      height: 17px;
-      line-height: 17px;
+      width: 9px;
+      height: 18px;
+      line-height: 18px;
+      font-size: 14px;
       text-align: center;
-      margin: 1px;
-      border: 1px solid #ccc;
-      border-radius: 2px;
+      margin: 0px;
+      border: 1px solid #888;
+      border-radius: 1px;
       background-color: #fff;
     }
     .bit.sign-1 { background-color: #ffcdd2; }
@@ -97,7 +98,7 @@
     .bit.mantissa-1 { background-color: #a5d6a7; }
     .bit.mantissa-0 { background-color: #e8f5e9; }
     .bit-label {
-      font-size: 12px;
+      font-size: 14px;
       text-align: center;
       margin-top: 5px;
       color: #666;
@@ -117,7 +118,9 @@
       margin-bottom: 0;
     }
     .field-info span {
+      display: inline-block;
       margin-right: 20px;
+      margin-bottom: 5px;
     }
   </style>
 </head>
@@ -128,18 +131,16 @@
   </div>
   <div class="tab-content active" id="fp32-content">
     <div class="container">
-      <div class="upper-half">
-        <div class="panel">
-          <div class="input-group">
-            <label for="hexInput">Hexadecimal (8 digits):</label>
-            <input type="text" id="hexInput" maxlength="8" placeholder="Enter 8 hex digits">
-          </div>
+      <div class="panel">
+        <div class="input-group">
+          <label for="hexInput">Hexadecimal:</label>
+          <input type="text" id="hexInput" maxlength="8" placeholder="Enter 8 hex digits">
         </div>
-        <div class="panel">
-          <div class="input-group">
-            <label for="decimalInput">Decimal Number:</label>
-            <input type="text" id="decimalInput" placeholder="Enter decimal number">
-          </div>
+      </div>
+      <div class="panel">
+        <div class="input-group">
+          <label for="decimalInput">Decimal Number:</label>
+          <input type="text" id="decimalInput" placeholder="Enter decimal number">
         </div>
       </div>
       <div class="binary-illustration" id="binaryIllustration">
@@ -152,18 +153,16 @@
   </div>
   <div class="tab-content" id="fp16-content">
     <div class="container">
-      <div class="upper-half">
-        <div class="panel">
-          <div class="input-group">
-            <label for="hexInput16">Hexadecimal (4 digits):</label>
-            <input type="text" id="hexInput16" maxlength="4" placeholder="Enter 4 hex digits">
-          </div>
+      <div class="panel">
+        <div class="input-group">
+          <label for="hexInput16">Hexadecimal:</label>
+          <input type="text" id="hexInput16" maxlength="4" placeholder="Enter 4 hex digits">
         </div>
-        <div class="panel">
-          <div class="input-group">
-            <label for="decimalInput16">Decimal Number:</label>
-            <input type="text" id="decimalInput16" placeholder="Enter decimal number">
-          </div>
+      </div>
+      <div class="panel">
+        <div class="input-group">
+          <label for="decimalInput16">Decimal Number:</label>
+          <input type="text" id="decimalInput16" placeholder="Enter decimal number">
         </div>
       </div>
       <div class="binary-illustration" id="binaryIllustration16">
@@ -331,7 +330,7 @@
         <div>
           <span>Mantissa: 0x${mantissaValue.toString(16).padStart(6, '0').toUpperCase()}</span>
           ${exponentValue === 0 ? 
-            `<span>In Decimal: ${mantissaValue}</span>` :
+            `<span>In Decimal (Subnormal): ${mantissaValue}</span>` :
             `<span>With Leading One: ${mantissaWithLeadingOne}</span>
              <span>Normalized: ${normalizedMantissa}</span>`
           }
@@ -568,7 +567,7 @@
         <div>
           <span>Mantissa: 0x${mantissaValue.toString(16).padStart(3, '0').toUpperCase()}</span>
           ${exponentValue === 0 ? 
-            `<span>In Decimal: ${mantissaValue}</span>` :
+            `<span>In Decimal (Subnormal): ${mantissaValue}</span>` :
             `<span>With Leading One: ${mantissaWithLeadingOne}</span>
              <span>Normalized: ${normalizedMantissa}</span>`
           }
