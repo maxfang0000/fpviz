@@ -7,7 +7,7 @@
   <style>
     body {
       font-family: Arial, sans-serif;
-      max-width: 480px;
+      max-width: 640px;
       margin: 0 auto;
       padding: 10px;
     }
@@ -73,22 +73,22 @@
     }
     .bit-group {
       display: inline-block;
-      margin: 0px;
+      margin: 1px;
       padding: 2px;
       border: 1px solid #999;
-      border-radius: 1px;
+      border-radius: 3px;
       background-color: white;
     }
     .bit {
       display: inline-block;
-      width: 9px;
+      width: 14px;
       height: 18px;
       line-height: 18px;
       font-size: 14px;
       text-align: center;
-      margin: 0px;
+      margin: 1px;
       border: 1px solid #888;
-      border-radius: 1px;
+      border-radius: 3px;
       background-color: #fff;
     }
     .bit.sign-1 { background-color: #ffcdd2; }
@@ -133,20 +133,20 @@
     <div class="container">
       <div class="panel">
         <div class="input-group">
-          <label for="hexInput">Hexadecimal:</label>
-          <input type="text" id="hexInput" maxlength="8" placeholder="Enter 8 hex digits">
+          <label for="hexInputFP32">Hexadecimal:</label>
+          <input type="text" id="hexInputFP32" maxlength="8" placeholder="Enter 8 hex digits">
         </div>
       </div>
       <div class="panel">
         <div class="input-group">
-          <label for="decimalInput">Decimal Number:</label>
-          <input type="text" id="decimalInput" placeholder="Enter decimal number">
+          <label for="decimalInputFP32">Decimal Number:</label>
+          <input type="text" id="decimalInputFP32" placeholder="Enter decimal number">
         </div>
       </div>
-      <div class="binary-illustration" id="binaryIllustration">
+      <div class="binary-illustration" id="binaryIllustrationFP32">
         <!-- Binary illustration will be generated here -->
       </div>
-      <div class="field-info" id="fieldInfo">
+      <div class="field-info" id="fieldInfoFP32">
         <!-- Field info will be generated here -->
       </div>
     </div>
@@ -155,20 +155,20 @@
     <div class="container">
       <div class="panel">
         <div class="input-group">
-          <label for="hexInput16">Hexadecimal:</label>
-          <input type="text" id="hexInput16" maxlength="4" placeholder="Enter 4 hex digits">
+          <label for="hexInputFP16">Hexadecimal:</label>
+          <input type="text" id="hexInputFP16" maxlength="4" placeholder="Enter 4 hex digits">
         </div>
       </div>
       <div class="panel">
         <div class="input-group">
-          <label for="decimalInput16">Decimal Number:</label>
-          <input type="text" id="decimalInput16" placeholder="Enter decimal number">
+          <label for="decimalInputFP16">Decimal Number:</label>
+          <input type="text" id="decimalInputFP16" placeholder="Enter decimal number">
         </div>
       </div>
-      <div class="binary-illustration" id="binaryIllustration16">
+      <div class="binary-illustration" id="binaryIllustrationFP16">
         <!-- Binary illustration will be generated here -->
       </div>
-      <div class="field-info" id="fieldInfo16">
+      <div class="field-info" id="fieldInfoFP16">
         <!-- Field info will be generated here -->
       </div>
     </div>
@@ -188,86 +188,105 @@
       });
     });
 
-    function hexToBinary(hex) {
-      return parseInt(hex, 16).toString(2).padStart(32, '0');
+    // Format constants
+    const fp16_fmt = { "name" : "FP16", "bits" : 16, "expbits" : 5 };
+    const fp32_fmt = { "name" : "FP32", "bits" : 32, "expbits" : 8 };
+
+    function hexToBinary(hex, fmt) {
+      return parseInt(hex, 16).toString(2).padStart(fmt.bits, '0');
+    }
+    function binaryToHex(binary, fmt) {
+      const hexdigits = fmt.bits / 4;
+      return parseInt(binary, 2).toString(16).padStart(hexdigits, '0');
     }
 
-    function binaryToHex(binary) {
-      return parseInt(binary, 2).toString(16).padStart(8, '0');
+    function specialSymbolToHex(float, fmt) {
+      const mantbits = fmt.bits - fmt.expbits - 1;
+      const hexdigits = fmt.bits / 4;
+      if (isNaN(float)) {
+        return ((((1 << fmt.expbits) - 1) << mantbits) + 1)
+                 .toString(16).padStart(hexdigits, '0');
+      } else if (float === Infinity) {
+        return (((1 << fmt.expbits) - 1) << mantbits)
+                 .toString(16).padStart(hexdigits, '0');
+      } else if (float === -Infinity) {
+        return (((1 << (fmt.expbits + 1)) - 1) * (2 ** mantbits))
+                 .toString(16).padStart(hexdigits, '0');
+      } else if (Object.is(float, -0)) {
+        return (2 ** (fmt.bits - 1))
+                 .toString(16).padStart(hexdigits, '0');
+      }
+      return '';
     }
 
-    function hexToFloat(hex) {
-      const binary = hexToBinary(hex);
+    function hexToFloat(hex, fmt) {
+      const mantbits = fmt.bits - fmt.expbits - 1;
+      const expbias = (2 ** (fmt.expbits - 1)) - 1;
+      const binary = hexToBinary(hex, fmt);
       const sign = binary[0] === '1' ? -1 : 1;
-      const exponent = parseInt(binary.substring(1, 9), 2);
-      const mantissa = parseInt(binary.substring(9), 2);
-
-      // Check for special values
-      if (exponent === 255) {
+      const exponent = parseInt(binary.substring(1, fmt.expbits + 1), 2);
+      const mantissa = parseInt(binary.substring(fmt.expbits + 1), 2);
+      
+      if (exponent === (2 ** fmt.expbits - 1)) {
         if (mantissa === 0) {
           return sign * Infinity;
         } else {
           return NaN;
         }
       }
-      
-      // Check for subnormal values
       if (exponent === 0) {
-        return sign * (mantissa / Math.pow(2, 23)) * Math.pow(2, -126);
+        return sign * mantissa / (2 ** mantbits) / (2 ** (expbias - 1));
       }
-      
-      // Normal numbers
-      return sign * (1 + mantissa / Math.pow(2, 23)) * Math.pow(2, exponent - 127);
+      return sign * (1 + mantissa / (2 ** mantbits))
+                  * (2 ** (exponent - expbias));
     }
 
-    function floatToHex(float) {
-      // Handle special values
-      if (isNaN(float)) {
-        return 'FF800000'; // NaN
-      }
-      if (float === Infinity) {
-        return '7F800000'; // Positive Infinity
-      }
-      if (float === -Infinity) {
-        return 'FF800000'; // Negative Infinity
+    function floatToHex(float, fmt) {
+      const sp = specialSymbolToHex(float, fmt);
+      if (sp.length > 0) return sp;
+
+      const mantbits = fmt.bits - fmt.expbits - 1;
+      const expbias = (2 ** (fmt.expbits - 1)) - 1;
+      const sign = float < 0 ? 1 : 0;
+      float = Math.abs(float);
+
+      if (float < 2**(-expbias + 1)) {
+        const mantissa = Math.round(float * 2**(mantbits + expbias - 1));
+        return (sign * (2 ** (fmt.bits - 1)) + mantissa).toString(16)
+                 .padStart(fmt.bits / 4, '0').toUpperCase();
       }
 
-      const buffer = new ArrayBuffer(4);
-      const view = new DataView(buffer);
-      view.setFloat32(0, float);
-      const hex = Array.from(new Uint8Array(buffer))
-        .map(b => b.toString(16).padStart(2, '0'))
-        .join('');
-      return hex;
+      const exponent = Math.floor(Math.log2(float)) + expbias;
+      const mantissa = Math.round((float / 2**(exponent - expbias) - 1)
+                                    * (2**mantbits));
+      if (exponent > (2**fmt.expbits - 2)) {
+        return specialSymbolToHex(sign * Infinity, fmt);
+      } else if (exponent < 1) {
+        return specialSymbolToHex(sign * 0, fmt);
+      }
+      return (sign * (2 ** (fmt.bits - 1))
+                + exponent * (2 ** mantbits)
+                + mantissa).toString(16)
+                           .padStart(fmt.bits / 4, '0')
+                           .toUpperCase();
     }
 
-    // Clamping functions
-    function clampToFP32(float) {
+    function clampToFP(float, fmt) {
       if (isNaN(float)) return NaN;
       if (float === Infinity || float === -Infinity) return float;
-      
-      const maxFP32 = 3.402823466e+38;
-      const minFP32 = -3.402823466e+38;
-      
-      if (float > maxFP32) return maxFP32;
-      if (float < minFP32) return minFP32;
+
+      const maxexp = 2 ** (fmt.expbits - 1) - 1;
+      const mantbits = fmt.bits - fmt.expbits - 1;
+      const maxval = (2 ** (mantbits + 1) - 1) * (2 ** (maxexp - mantbits));
+      const minval = -maxval;
+
+      if (float > maxval) return maxval;
+      if (float < minval) return minval;
       return float;
     }
 
-    function clampToFP16(float) {
-      if (isNaN(float)) return NaN;
-      if (float === Infinity || float === -Infinity) return float;
-      
-      const maxFP16 = 65504;  // 0x7BFF
-      const minFP16 = -65504; // 0xFBFF
-      
-      if (float > maxFP16) return maxFP16;
-      if (float < minFP16) return minFP16;
-      return float;
-    }
-
-    function updateBinaryIllustration(binary) {
-      const container = document.getElementById('binaryIllustration');
+    function updateBinaryIllustrationFP32(binary) {
+      const container = document.getElementById('binaryIllustrationFP32');
       container.innerHTML = '';
 
       // Create bit groups (8 bits each)
@@ -296,8 +315,8 @@
             const newBinary = binary.split('');
             const bitIndex = i * 8 + j;
             newBinary[bitIndex] = newBinary[bitIndex] === '1' ? '0' : '1';
-            const newHex = binaryToHex(newBinary.join(''));
-            document.getElementById('hexInput').value = newHex;
+            const newHex = binaryToHex(newBinary.join(''), fp32_fmt);
+            document.getElementById('hexInputFP32').value = newHex;
             updateFromHex(newHex);
           });
           
@@ -315,7 +334,7 @@
       }
 
       // Update field info
-      const fieldInfo = document.getElementById('fieldInfo');
+      const fieldInfo = document.getElementById('fieldInfoFP32');
       const exponentValue = parseInt(binary.substring(1, 9), 2);
       const unbiasedExponent = exponentValue - 127;
       const mantissaValue = parseInt(binary.substring(9), 2);
@@ -341,7 +360,7 @@
     function updateFromHex(hex) {
       if (hex.length !== 8) return;
       
-      const decimal = hexToFloat(hex);
+      const decimal = hexToFloat(hex, fp32_fmt);
       let displayValue;
       if (isNaN(decimal)) {
         displayValue = 'NaN';
@@ -352,10 +371,10 @@
       } else {
         displayValue = decimal.toString();
       }
-      document.getElementById('decimalInput').value = displayValue;
+      document.getElementById('decimalInputFP32').value = displayValue;
       
-      const binary = hexToBinary(hex);
-      updateBinaryIllustration(binary);
+      const binary = hexToBinary(hex, fp32_fmt);
+      updateBinaryIllustrationFP32(binary);
     }
 
     function updateFromDecimal(decimal) {
@@ -371,10 +390,10 @@
       }
       
       // Clamp the value to FP32 range
-      float = clampToFP32(float);
+      float = clampToFP(float, fp32_fmt);
       
       // Only update the display if the value is out of range
-      const displayValue = document.getElementById('decimalInput').value;
+      const displayValue = document.getElementById('decimalInputFP32').value;
       if (isNaN(float) || float === Infinity || float === -Infinity || 
         (parseFloat(displayValue) !== float && !isNaN(parseFloat(displayValue)))) {
         let newDisplayValue;
@@ -387,18 +406,18 @@
         } else {
           newDisplayValue = float.toString();
         }
-        document.getElementById('decimalInput').value = newDisplayValue;
+        document.getElementById('decimalInputFP32').value = newDisplayValue;
       }
       
-      const hex = floatToHex(float);
-      document.getElementById('hexInput').value = hex;
+      const hex = floatToHex(float, fp32_fmt);
+      document.getElementById('hexInputFP32').value = hex;
       
-      const binary = hexToBinary(hex);
-      updateBinaryIllustration(binary);
+      const binary = hexToBinary(hex, fp32_fmt);
+      updateBinaryIllustrationFP32(binary);
     }
 
     // Event listeners
-    document.getElementById('hexInput').addEventListener('input', (e) => {
+    document.getElementById('hexInputFP32').addEventListener('input', (e) => {
       const hex = e.target.value.replace(/[^0-9A-Fa-f]/g, '').toUpperCase();
       if (hex.length <= 8) {
         e.target.value = hex;
@@ -408,7 +427,7 @@
       }
     });
 
-    document.getElementById('decimalInput').addEventListener('input', (e) => {
+    document.getElementById('decimalInputFP32').addEventListener('input', (e) => {
       const decimal = e.target.value;
       if (decimal === '') {
         // Don't update the display, but treat as 0 internally
@@ -426,85 +445,9 @@
     });
 
     // FP16 functions
-    function hexToBinary16(hex) {
-      return parseInt(hex, 16).toString(2).padStart(16, '0');
-    }
 
-    function binaryToHex16(binary) {
-      return parseInt(binary, 2).toString(16).padStart(4, '0');
-    }
-
-    function hexToFloat16(hex) {
-      const binary = hexToBinary16(hex);
-      const sign = binary[0] === '1' ? -1 : 1;
-      const exponent = parseInt(binary.substring(1, 6), 2);
-      const mantissa = parseInt(binary.substring(6), 2);
-
-      // Check for special values
-      if (exponent === 31) {
-        if (mantissa === 0) {
-          return sign * Infinity;
-        } else {
-          return NaN;
-        }
-      }
-      
-      // Check for subnormal values
-      if (exponent === 0) {
-        return sign * (mantissa / Math.pow(2, 10)) * Math.pow(2, -14);
-      }
-      
-      // Normal numbers
-      return sign * (1 + mantissa / Math.pow(2, 10)) * Math.pow(2, exponent - 15);
-    }
-
-    function floatToHex16(float) {
-      // Handle special values
-      if (isNaN(float)) {
-        return 'FC00'; // NaN
-      }
-      if (float === Infinity) {
-        return '7C00'; // Positive Infinity
-      }
-      if (float === -Infinity) {
-        return 'FC00'; // Negative Infinity
-      }
-
-      // Handle zero
-      if (float === 0) {
-        return '0000';
-      }
-      if (float === -0) {
-        return '8000';
-      }
-
-      // Get sign bit
-      const sign = float < 0 ? 1 : 0;
-      float = Math.abs(float);
-
-      // Handle subnormal numbers
-      if (float < 2**(-14)) {
-        const mantissa = Math.round(float * 2**(24));
-        return (sign << 15 | mantissa).toString(16).padStart(4, '0').toUpperCase();
-      }
-
-      // Handle normal numbers
-      const exponent = Math.floor(Math.log2(float)) + 15;
-      const mantissa = Math.round((float / 2**(exponent - 15) - 1) * 2**10);
-      
-      // Clamp exponent to valid range
-      if (exponent > 31) {
-        return sign ? 'FC00' : '7C00'; // Infinity
-      }
-      if (exponent < 0) {
-        return '0000'; // Zero
-      }
-
-      return (sign << 15 | exponent << 10 | mantissa).toString(16).padStart(4, '0').toUpperCase();
-    }
-
-    function updateBinaryIllustration16(binary) {
-      const container = document.getElementById('binaryIllustration16');
+    function updateBinaryIllustrationFP16(binary) {
+      const container = document.getElementById('binaryIllustrationFP16');
       container.innerHTML = '';
 
       // Create bit groups (8 bits each)
@@ -533,8 +476,8 @@
             const newBinary = binary.split('');
             const bitIndex = i * 8 + j;
             newBinary[bitIndex] = newBinary[bitIndex] === '1' ? '0' : '1';
-            const newHex = binaryToHex16(newBinary.join(''));
-            document.getElementById('hexInput16').value = newHex;
+            const newHex = binaryToHex(newBinary.join(''), fp16_fmt);
+            document.getElementById('hexInputFP16').value = newHex;
             updateFromHex16(newHex);
           });
           
@@ -552,7 +495,7 @@
       }
 
       // Update field info
-      const fieldInfo = document.getElementById('fieldInfo16');
+      const fieldInfo = document.getElementById('fieldInfoFP16');
       const exponentValue = parseInt(binary.substring(1, 6), 2);
       const unbiasedExponent = exponentValue - 15;
       const mantissaValue = parseInt(binary.substring(6), 2);
@@ -578,7 +521,7 @@
     function updateFromHex16(hex) {
       if (hex.length !== 4) return;
       
-      const decimal = hexToFloat16(hex);
+      const decimal = hexToFloat(hex, fp16_fmt);
       let displayValue;
       if (isNaN(decimal)) {
         displayValue = 'NaN';
@@ -589,10 +532,10 @@
       } else {
         displayValue = decimal.toString();
       }
-      document.getElementById('decimalInput16').value = displayValue;
+      document.getElementById('decimalInputFP16').value = displayValue;
       
-      const binary = hexToBinary16(hex);
-      updateBinaryIllustration16(binary);
+      const binary = hexToBinary(hex, fp16_fmt);
+      updateBinaryIllustrationFP16(binary);
     }
 
     function updateFromDecimal16(decimal) {
@@ -608,10 +551,10 @@
       }
       
       // Clamp the value to FP16 range
-      float = clampToFP16(float);
+      float = clampToFP(float, fp16_fmt);
       
       // Only update the display if the value is out of range
-      const displayValue = document.getElementById('decimalInput16').value;
+      const displayValue = document.getElementById('decimalInputFP16').value;
       if (isNaN(float) || float === Infinity || float === -Infinity || 
         (parseFloat(displayValue) !== float && !isNaN(parseFloat(displayValue)))) {
         let newDisplayValue;
@@ -624,18 +567,18 @@
         } else {
           newDisplayValue = float.toString();
         }
-        document.getElementById('decimalInput16').value = newDisplayValue;
+        document.getElementById('decimalInputFP16').value = newDisplayValue;
       }
       
-      const hex = floatToHex16(float);
-      document.getElementById('hexInput16').value = hex;
+      const hex = floatToHex(float, fp16_fmt);
+      document.getElementById('hexInputFP16').value = hex;
       
-      const binary = hexToBinary16(hex);
-      updateBinaryIllustration16(binary);
+      const binary = hexToBinary(hex, fp16_fmt);
+      updateBinaryIllustrationFP16(binary);
     }
 
     // FP16 Event listeners
-    document.getElementById('hexInput16').addEventListener('input', (e) => {
+    document.getElementById('hexInputFP16').addEventListener('input', (e) => {
       const hex = e.target.value.replace(/[^0-9A-Fa-f]/g, '').toUpperCase();
       if (hex.length <= 4) {
         e.target.value = hex;
@@ -645,7 +588,7 @@
       }
     });
 
-    document.getElementById('decimalInput16').addEventListener('input', (e) => {
+    document.getElementById('decimalInputFP16').addEventListener('input', (e) => {
       const decimal = e.target.value;
       if (decimal === '') {
         // Don't update the display, but treat as 0 internally
@@ -663,9 +606,9 @@
     });
 
     // Initialize with value 0
-    document.getElementById('hexInput').value = '00000000';
+    document.getElementById('hexInputFP32').value = '00000000';
     updateFromHex('00000000');
-    document.getElementById('hexInput16').value = '0000';
+    document.getElementById('hexInputFP16').value = '0000';
     updateFromHex16('0000');
   </script>
 </body>
