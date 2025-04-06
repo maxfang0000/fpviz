@@ -92,10 +92,10 @@
       border-radius: 3px;
       background-color: #fff;
     }
-    .bit.sign-1 { background-color: #ffcdd2; }
-    .bit.sign-0 { background-color: #ffebee; }
-    .bit.exponent-1 { background-color: #90caf9; }
-    .bit.exponent-0 { background-color: #e3f2fd; }
+    .bit.sign-1 { background-color: #90caf9; }
+    .bit.sign-0 { background-color: #e3f2fd; }
+    .bit.exponent-1 { background-color: #ffcdd2; }
+    .bit.exponent-0 { background-color: #ffebee; }
     .bit.mantissa-1 { background-color: #a5d6a7; }
     .bit.mantissa-0 { background-color: #e8f5e9; }
     .bit-label {
@@ -103,6 +103,15 @@
       text-align: center;
       margin-top: 5px;
       color: #666;
+    }
+    .full-prec {
+      font-size: 10px;
+      margin-top: 5px;
+      padding: 2px;
+      background-color: #fff;
+      border: 1px solid #ccc;
+      border-radius: 3px;
+      font-family: monospace;
     }
     .field-info {
       margin-top: 0;
@@ -135,14 +144,14 @@
     <div class="container">
       <div class="panel">
         <div class="input-group">
-          <label for="hexInput">Hexadecimal:</label>
-          <input type="text" id="hexInput" maxlength="8" placeholder="Enter hex digits">
+          <label for="decimalInput">Decimal:</label>
+          <input type="text" id="decimalInput" placeholder="Enter decimal number">
         </div>
       </div>
       <div class="panel">
         <div class="input-group">
-          <label for="decimalInput">Decimal:</label>
-          <input type="text" id="decimalInput" placeholder="Enter decimal number">
+          <label for="hexInput">Hexadecimal:</label>
+          <input type="text" id="hexInput" maxlength="8" placeholder="Enter hex digits">
         </div>
       </div>
     </div>
@@ -289,6 +298,96 @@
       updateBinaryIllustration(binary, fmt);
     }
 
+    function numberToExactDecimalString(num) {
+      if (!Number.isFinite(num)) return String(num);
+      if (num === 0) return "0";
+
+      const absNum = Math.abs(num);
+      const useScientific = absNum < 1e-6 || absNum > 1e10;
+
+      const buffer = new ArrayBuffer(8);
+      const view = new DataView(buffer);
+      view.setFloat64(0, num);
+
+      const high = view.getUint32(0);
+      const low = view.getUint32(4);
+      const raw = (BigInt(high) << 32n) | BigInt(low);
+
+      const sign = (raw >> 63n) & 1n;
+      const exponent = (raw >> 52n) & 0x7FFn;
+      const mantissa = raw & 0xFFFFFFFFFFFFFn;
+
+      let realMantissa = mantissa;
+      let realExponent = 0n;
+
+      if (exponent === 0n) {
+        // Subnormal numbers
+        realExponent = 1n - 1023n - 52n;
+      } else {
+        // Normalized numbers
+        realMantissa |= (1n << 52n);
+        realExponent = BigInt(exponent) - 1023n - 52n;
+      }
+
+      const signStr = sign === 1n ? "-" : "";
+      const decimal = bigIntToDecimal(realMantissa, realExponent);
+
+      if (!useScientific) {
+        return signStr + decimal;
+      }
+
+      // Convert to scientific notation
+      const sci = toScientific(decimal);
+      return signStr + sci;
+    }
+
+    function bigIntToDecimal(mantissa, exponent) {
+      if (exponent === 0n) return mantissa.toString();
+
+      if (exponent > 0n) {
+        return (mantissa * (1n << exponent)).toString();
+      } else {
+        const scale = 1n << (-exponent);
+        const intPart = mantissa / scale;
+        let rem = mantissa % scale;
+
+        let frac = "";
+        let i = 0;
+        while (rem !== 0n && i < 200) {
+          rem *= 10n;
+          const digit = rem / scale;
+          rem %= scale;
+          frac += digit.toString();
+          i++;
+        }
+
+        return intPart.toString() + (frac.length > 0 ? "." + frac : "");
+      }
+    }
+
+    function toScientific(decimalStr) {
+      const [intPart, fracPart = ""] = decimalStr.split(".");
+      const combined = intPart + fracPart;
+      const firstNonZeroIndex = combined.search(/[1-9]/);
+
+      if (firstNonZeroIndex === -1) {
+        return "0e+0";
+      }
+
+      const significant = combined.slice(firstNonZeroIndex);
+      const exponent = intPart[0] !== "0"
+        ? intPart.length - 1
+        : -1 * (fracPart.slice(0).search(/[1-9]/) + 1);
+
+      return (
+        significant[0] +
+        (significant.length > 1 ? "." + significant.slice(1) : "") +
+        "e" +
+        (exponent >= 0 ? "+" : "") +
+        exponent
+      );
+    }
+
     function updateBinaryIllustration(binary, fmt) {
       const container = document.getElementById('binaryIllustration');
       container.innerHTML = '';
@@ -338,6 +437,13 @@
         
         container.appendChild(group);
       }
+      let fullprec = document.createElement('div');
+      fullprec.className = 'full-prec';
+      const hexValue = binaryToHex(binary, fmt);
+      const decimal = hexToFloat(hexValue, fmt);
+      const strdec = numberToExactDecimalString(decimal);
+      fullprec.innerHTML = `<span>${strdec}</span>`;
+      container.appendChild(fullprec);
 
       // Update field info
       const mantbits = fmt.bits - fmt.expbits - 1;
@@ -425,6 +531,9 @@
       if (decimal === '') {
         // Don't update the display, but treat as 0 internally
         updateFromDecimal('0', fmt);
+        return;
+      } else if (decimal === '-') {
+        updateFromDecimal('-0', fmt);
         return;
       }
       if (decimal === 'NaN' || decimal === 'Infinity' || decimal === '-Infinity')
